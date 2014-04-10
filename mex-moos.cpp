@@ -251,10 +251,10 @@ void SetParam(std::string sParam,std::string sVal)
 void FillDefaultArgMap()
 {
     //here we add our default options
-    SetParam("CONFIG_FILE","iMatlab.moos");
+    SetParam("CONFIG_FILE","mex-moos.moos");
     SetParam("SERIAL",0.0);
     SetParam("SERIAL_TIMEOUT",10.0);
-    SetParam("MOOSNAME","iMatlab");
+    SetParam("MOOSNAME","mex-moos");
     SetParam("SERVERPORT",9000);
     SetParam("SERVERHOST","localhost");
     
@@ -296,7 +296,7 @@ Param GetParam(std::string sName)
 void OnExit()
 {
     
-    MOOSTrace("iMatlab is cleaning up\n");
+    MOOSTrace("mex-moos is cleaning up\n");
     if(pComms)
     {
         if(1 || pComms->IsConnected())
@@ -332,7 +332,7 @@ bool OnMOOSConnect(void * pParam)
 }
 
 
-//called the fist time iMatlab runs or when 'init' is passed as teh first parameter
+//called the fist time mex-moos runs or when 'init' is passed as teh first parameter
 bool Initialise(int nlhs, mxArray *plhs[], const mxArray *prhs[], int nrhs)
 {
     
@@ -434,7 +434,7 @@ bool Initialise(int nlhs, mxArray *plhs[], const mxArray *prhs[], int nrhs)
     
     //set up a file reader
     Param N;
-    std::string sMOOSName = "iMatlab";
+    std::string sMOOSName = "mex-moos";
     if(!GetParam("MOOSNAME",N))
     {
         MOOSTrace("No MOOSName found assuming default of %s\n",sMOOSName.c_str());

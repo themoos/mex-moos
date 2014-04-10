@@ -79,15 +79,11 @@ if(NOT MATLAB_FOUND)
   return()
 endif()
 
-set(MRG_LIBRARY_FULL_NAME matlabmoos) 
+set(MRG_LIBRARY_FULL_NAME mex-moos) 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 # Declare the mex target name and associated source file.
-set(${MRG_LIBRARY_FULL_NAME}_MEX_TARGET ${MRG_LIBRARY_FULL_NAME}_mex)
-
-#set(${MRG_LIBRARY_FULL_NAME}_MEX_SOURCE
-#  ${${MRG_LIBRARY_FULL_NAME}_MEX_TARGET}.cpp)
- 
+set(${MRG_LIBRARY_FULL_NAME}_MEX_TARGET mexmoos) 
 set(${MRG_LIBRARY_FULL_NAME}_MEX_SOURCE mex-moos.cpp )
   
   
@@ -162,7 +158,7 @@ add_custom_target( ${${MRG_LIBRARY_FULL_NAME}_MEX_TARGET}
   add_custom_target(copy)
   add_custom_command(TARGET copy PRE_BUILD
                      COMMAND ${CMAKE_COMMAND} -E
-                         copy ${CMAKE_CURRENT_SOURCE_DIR}/iMatlab.moos ${CMAKE_CURRENT_BINARY_DIR} )
+                         copy ${CMAKE_CURRENT_SOURCE_DIR}/mex-moos.moos ${CMAKE_CURRENT_BINARY_DIR} )
   
   add_dependencies(${${MRG_LIBRARY_FULL_NAME}_MEX_TARGET} copy) 
   

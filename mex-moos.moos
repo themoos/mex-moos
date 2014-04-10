@@ -1,0 +1,14 @@
+/name of the machine hosting the MOOSDB 
+//(can be an I.P address aswell as a FQDN)
+ServerHost = localhost
+
+//port DB listens on (make sure you are not blocking the port you request)
+ServerPort = 9000
+
+
+ProcessConfig = mex-moos
+{
+	AppTick		= 10
+	CommsTick	= 10
+
+}
