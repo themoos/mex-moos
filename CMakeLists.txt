@@ -34,10 +34,15 @@ ExternalProject_Add(${EPN}
 )
 
 
-find_package(MOOS 10 REQUIRED CONFIG HINTS ${${EPN}_BUILD_DIR} NO_DEFAULT_PATH )
-message("MOOS_INCLUDE_DIRS='${MOOS_INCLUDE_DIRS}'")
-message("MOOS_LIBRARIES='${MOOS_LIBRARIES}'")
-message("EPN_BUILD_DIR = '${${EPN}_BUILD_DIR}'")
+find_package(MOOS 10  CONFIG HINTS ${${EPN}_BUILD_DIR} NO_DEFAULT_PATH )
+if(NOT MOOS_FOUND)
+	message("MOOS NOT FOUND BUT THATS OK - run CMake and try again....")
+	return()
+endif()
+
+#message("MOOS_INCLUDE_DIRS='${MOOS_INCLUDE_DIRS}'")
+#message("MOOS_LIBRARIES='${MOOS_LIBRARIES}'")
+#message("EPN_BUILD_DIR = '${${EPN}_BUILD_DIR}'")
 
 
 
