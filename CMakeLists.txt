@@ -8,19 +8,51 @@ set(EPN PRIVATE_MOOS)
 set(${EPN}_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/${EPN}")
 set(${EPN}_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/${EPN}")
 set(${EPN}_BUILD_DIR ${${EPN}_INSTALL_DIR}/build)
-#set(CMAKE_PREFIX_PATH ${${EPN}_BUILD_DIR} ${CMAKE_PREFIX_PATH}) 
 
 
 set(CMakeScripts_MODULE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(CMAKE_MODULE_PATH ${CMakeScripts_MODULE_DIR})
 
 
-set(${EPN}_CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${${EPN}_INSTALL_DIR};-DENABLE_EXPORT=OFF;-DUSE_LIBSTDCPP=ON)
+# Option for explicitly linking against the GNU libstdc++ instead of libc++ on
+# OSX Mavericks, required in order to use iMatlab as MATLAB still uses libstdc++
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+  # On OSX, get the version number.
+  find_program(SW_VERS_PROGRAM sw_vers)
+  mark_as_advanced(SW_VERS_PROGRAM)
+  execute_process(COMMAND ${SW_VERS_PROGRAM} "-productVersion"
+    OUTPUT_VARIABLE OSX_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-message("${EPN}_PREFIX= '${${EPN}_PREFIX}'")
-message("${EPN}_INSTALL_DIR='${${EPN}_INSTALL_DIR}'")
+  # Mavericks (10.9) and above use libc++ as the default.
+  set(OSX_MAVERICKS_VERSION 10.9)
+
+  if (OSX_VERSION VERSION_EQUAL OSX_MAVERICKS_VERSION OR
+      OSX_VERSION VERSION_GREATER OSX_MAVERICKS_VERSION)
+    option(USE_LIBSTDCPP
+      "Use (legacy) GNU libstdc++ on OSX >= ${OSX_MAVERICKS_VERSION}, instead of default LLVM libc++ (required for iMatlab)" ON)
+    if (USE_LIBSTDCPP)
+      message("Running OS X Mavericks (specific version: ${OSX_VERSION}) using "
+        "legacy GNU libstdc++ instead of default LLVM libc++, disable "
+        "USE_LIBSTDCPP option to revert to default LLVM libc++.")      
+    else()
+      # Remove any previous specification of libstdc++.
+      message(STATUS "Using default LLVM libc++.")
+      string(REPLACE "-stdlib=libstdc++" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    endif()
+  endif()
+endif()
+
+
+
+
+
+set(${EPN}_CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${${EPN}_INSTALL_DIR};-DENABLE_EXPORT=OFF;-DUSE_LIBSTDCPP=${USE_LIBSTDCPP})
+
+#message("${EPN}_PREFIX= '${${EPN}_PREFIX}'")
+#message("${EPN}_INSTALL_DIR='${${EPN}_INSTALL_DIR}'")
 message("${EPN}_CMAKE_ARGS='${${EPN}_CMAKE_ARGS}'")
-message("GIT_EXECUTABLE='${GIT_EXECUTABLE}'")
+#message("GIT_EXECUTABLE='${GIT_EXECUTABLE}'")
 
 ExternalProject_Add(${EPN}
   PREFIX ${${EPN}_PREFIX}
@@ -36,15 +68,9 @@ ExternalProject_Add(${EPN}
 
 find_package(MOOS 10  CONFIG HINTS ${${EPN}_BUILD_DIR} NO_DEFAULT_PATH )
 if(NOT MOOS_FOUND)
-	message("MOOS NOT FOUND BUT THATS OK - run CMake and try again....")
+	message("MOOS NOT FOUND BUT THATS OK. Continue to 'generate', run make, (MOOS will download), then run cmake  again....")
 	return()
 endif()
-
-#message("MOOS_INCLUDE_DIRS='${MOOS_INCLUDE_DIRS}'")
-#message("MOOS_LIBRARIES='${MOOS_LIBRARIES}'")
-#message("EPN_BUILD_DIR = '${${EPN}_BUILD_DIR}'")
-
-
 
 find_package( Matlab QUIET )
 if(NOT MATLAB_FOUND)
@@ -65,17 +91,11 @@ set(${MRG_LIBRARY_FULL_NAME}_MEX_TARGET ${MRG_LIBRARY_FULL_NAME}_mex)
 set(${MRG_LIBRARY_FULL_NAME}_MEX_SOURCE
   mex-moos.cpp mexHelpers.cpp )
   
-message(STATUS " {MRG_LIBRARY_FULL_NAME}_MEX_TARGET ${${MRG_LIBRARY_FULL_NAME}_MEX_TARGET}")
-  
-  
   
 # Explicitly set the output location for the mex file to be build/lib, and set
 # the extension to match the mex extension for the current platform.
 set(${MRG_LIBRARY_FULL_NAME}_MEX_FILE
   ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${${MRG_LIBRARY_FULL_NAME}_MEX_TARGET}.${MATLAB_MEX_EXTENSION})
-
-message(STATUS " {MRG_LIBRARY_FULL_NAME}_MEX_FILE ${${MRG_LIBRARY_FULL_NAME}_MEX_FILE}")
-
 
 # Add custom command to build the mex file.
 #
