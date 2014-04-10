@@ -88,8 +88,7 @@ set(${MRG_LIBRARY_FULL_NAME}_MEX_TARGET ${MRG_LIBRARY_FULL_NAME}_mex)
 #set(${MRG_LIBRARY_FULL_NAME}_MEX_SOURCE
 #  ${${MRG_LIBRARY_FULL_NAME}_MEX_TARGET}.cpp)
  
-set(${MRG_LIBRARY_FULL_NAME}_MEX_SOURCE
-  mex-moos.cpp mexHelpers.cpp )
+set(${MRG_LIBRARY_FULL_NAME}_MEX_SOURCE mex-moos.cpp )
   
   
 # Explicitly set the output location for the mex file to be build/lib, and set
@@ -157,6 +156,17 @@ add_custom_target( ${${MRG_LIBRARY_FULL_NAME}_MEX_TARGET}
   ALL DEPENDS ${${MRG_LIBRARY_FULL_NAME}_MEX_FILE}
   SOURCES ${${MRG_LIBRARY_FULL_NAME}_MEX_SOURCE}
   VERBATIM )
+
+
+  
+  add_custom_target(copy)
+  add_custom_command(TARGET copy PRE_BUILD
+                     COMMAND ${CMAKE_COMMAND} -E
+                         copy ${CMAKE_CURRENT_SOURCE_DIR}/iMatlab.moos ${CMAKE_CURRENT_BINARY_DIR} )
+  
+  add_dependencies(${${MRG_LIBRARY_FULL_NAME}_MEX_TARGET} copy) 
+  
+  
 
 message(STATUS "==> MRG: IMPORTANT: To use ${MRG_LIBRARY_FULL_NAME} MEX "
   "library, add the following to MATLAB's path:")

@@ -48,7 +48,7 @@
 #include <iostream>
 #include <math.h>
 #include <stdint.h>
-#include "mexHelpers.h"
+//#include "mexHelpers.h"
 #include <string>
 #include <map>
 #include <fstream>
@@ -87,6 +87,88 @@ CMOOSNTSerialPort gPort;
 #include "MOOS/libMOOS/Utils/MOOSLinuxSerialPort.h"
 CMOOSLinuxSerialPort gPort;
 #endif
+
+
+
+#include "mex.h"
+
+
+bool  Matlab2Double(double & dfVal,const mxArray * pMLA)
+{
+    if(!mxIsDouble(pMLA))
+        return false;
+
+    dfVal = mxGetScalar(pMLA);
+    return true;
+}
+
+bool  Matlab2String(std::string & sStr,const mxArray * pMLA)
+{
+    /* Input must be a string. */
+    if ( mxIsChar(pMLA) != 1)
+    {
+        return false;
+    }
+
+    /* Input must be a row vector. */
+    if (mxGetM(pMLA)!=1)
+    {
+        mexPrintf("Input must be a row vector.");
+        return false;
+    }
+
+    /* Get the length of the input string. */
+    int buflen = (mxGetM(pMLA) * mxGetN(pMLA)) + 1;
+
+    /* Allocate memory for input and output strings. */
+    void * input_buf=mxCalloc(buflen, sizeof(char));
+
+    /* Copy the string data from prhs[0] into a C string
+    * input_ buf.
+    * If the string array contains several rows, they are copied,
+    * one column at a time, into one long string array.
+    */
+    int status = mxGetString(pMLA, (char*)input_buf, buflen);
+
+    if(status!=0)
+    {
+        mexErrMsgTxt("Bad String extraction.");
+        return false;
+    }
+
+    //yay!
+    sStr  = std::string ((char*)input_buf);
+
+    return true;
+
+
+}
+
+bool Matlab2Binary(std::vector<uint8_t> & bVal, const mxArray * pMLA) {
+  if (!mxIsUint8(pMLA) || mxIsEmpty(pMLA)) {
+    return false;
+  }
+  // Input can be either a row or a column vector, but must be a vector.
+  if (mxGetM(pMLA) != 1 && mxGetN(pMLA) != 1) {
+    mexPrintf("Binary data must be a uint8 vector (row or column).");
+    return false;
+  }
+
+  const uint8_t* raw_data_start =
+      static_cast<const uint8_t*>(mxGetData(pMLA));
+  if (raw_data_start == NULL) {
+    mexErrMsgTxt("Failed to get pointer to binary data.");
+  }
+
+  bVal = std::vector<uint8_t>(
+      raw_data_start,
+      raw_data_start +mxGetNumberOfElements(pMLA));
+
+  return true;
+}
+
+
+
 
 
 //some file scope variables - these stay resident
