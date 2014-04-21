@@ -29,16 +29,7 @@
 //
 //////////////////////////    END_GPL    //////////////////////////////////
 
-//OK - this code compiles to make a matlab interface to MOOS
-//normal users should define MATLAB_MEX_FILE at compile time.
-//users who have want to extend the interface and use the VNL
-//numerics library should define HAVE_VNL.
-//the compile should also include mexVNLHelpers.cpp
-//as always link against MOOSLIB and MOOSGenLib
-//if you aren't using the CMake build system supplied with MOOS
-//make sure mex.h is in your include path - see the matlab documentation
-//
-// copyright Paul Newman, University of Oxford 2005
+
 
 #ifdef _WIN32
 #pragma warning(disable : 4786)
@@ -48,22 +39,16 @@
 #include <iostream>
 #include <math.h>
 #include <stdint.h>
-//#include "mexHelpers.h"
 #include <string>
 #include <map>
-#include <fstream>
 #include <algorithm>
-#include "MOOS/libMOOS/MOOSLib.h"
 #include "MOOS/libMOOS/Comms/MOOSAsyncCommClient.h"
+#include "MOOS/libMOOS/Utils/ConsoleColours.h"
 
 extern "C" {
 #include "mex.h"
 }
 
-
-#ifdef MATLAB_MEX_FILE
-#define MOOSTrace mexPrintf
-#endif
 
 
 //this should deal with the new matlab API
@@ -79,18 +64,6 @@ extern "C" {
 #endif
 
 
-/** A sensor port */
-#ifdef _WIN32
-#include "MOOS/libMOOS/Utils/MOOSNTSerialPort.h"
-CMOOSNTSerialPort gPort;
-#else
-#include "MOOS/libMOOS/Utils/MOOSLinuxSerialPort.h"
-CMOOSLinuxSerialPort gPort;
-#endif
-
-
-
-#include "mex.h"
 
 
 bool  Matlab2Double(double & dfVal,const mxArray * pMLA)
@@ -171,17 +144,13 @@ bool Matlab2Binary(std::vector<uint8_t> & bVal, const mxArray * pMLA) {
 
 
 
-//some file scope variables - these stay resident
-//in matlab's memory
-/** a configuration reader **/
-CProcessConfigReader gConfigReader;
 
 //good to go?
 bool bInitialised= false;
 
 //MOOS connection info
-std::string sServerHost,sServerPort;
-long lServerPort;
+std::string sServerHost,sServerPort,sMOOSName;
+int lServerPort;
 
 /** a MOOS Connection **/
 static CMOOSCommClient* pComms=NULL;
@@ -251,13 +220,10 @@ void SetParam(std::string sParam,std::string sVal)
 void FillDefaultArgMap()
 {
     //here we add our default options
-    SetParam("CONFIG_FILE","mex-moos.moos");
-    SetParam("SERIAL",0.0);
-    SetParam("SERIAL_TIMEOUT",10.0);
-    SetParam("MOOSNAME","mex-moos");
-    SetParam("SERVERPORT",9000);
+    SetParam("MOOSNAME","mexmoos");
+    SetParam("SERVERPORT","9000");
     SetParam("SERVERHOST","localhost");
-    
+
 }
 
 bool GetParam(std::string sName, Param & P)
@@ -274,6 +240,46 @@ bool GetParam(std::string sName, Param & P)
     }
 }
 
+bool GetDoubleParam(const std::string & sName, double & dfVal)
+{
+    Param P;
+    if( !GetParam(sName, P))
+        return false;
+    if(P.m_eType!=Param::DBL)
+        return false;
+    dfVal = P.dfVal;
+    return true;
+}
+
+bool GetStringParam(const std::string & sName, std::string & sVal)
+{
+    Param P;
+    if( !GetParam(sName, P))
+        return false;
+    if(P.m_eType!=Param::STR)
+        return false;
+    sVal = P.sVal;
+    return true;
+}
+
+
+std::string GetParamAsString(const std::string & sName)
+{
+    Param P;
+    if( GetParam(sName,P))
+    {
+        std::stringstream ss;
+        switch(P.m_eType)
+        {
+            case Param::DBL : ss<<P.dfVal; break;
+            case Param::STR : ss<<P.sVal; break;
+            default:
+                break;
+        }
+        return ss.str();
+    }
+    return "";
+}
 Param GetParam(std::string sName)
 {
     Param NP;
@@ -296,20 +302,22 @@ Param GetParam(std::string sName)
 void OnExit()
 {
     
-    MOOSTrace("mex-moos is cleaning up\n");
     if(pComms)
     {
-        if(1 || pComms->IsConnected())
-        {
-            MOOSTrace("Halting MOOSComms ");
-            
-            //do an agressive close...don't know why this is needed :-(
-            pComms->Close(true);
-            delete pComms;
-            pComms=NULL;
-        }
+        std::cout<<"closing MOOS Comms... ";
+
+        pComms->Close(true);
+        delete pComms;
+        pComms=NULL;
+
+        std::cout<<"done "<<std::endl;
+
     }
+    bInitialised = false;
+
 }
+
+
 
 
 void DoRegistrations()
@@ -326,7 +334,7 @@ void DoRegistrations()
 
 bool OnMOOSConnect(void * pParam)
 {
-    MOOSTrace("DB connection established.\n");
+    std::cout<<"DB connection established"<<std::endl;
     DoRegistrations();
     return true;
 }
@@ -338,14 +346,10 @@ bool Initialise(int nlhs, mxArray *plhs[], const mxArray *prhs[], int nrhs)
     
     if(bInitialised)
     {
-        MOOSTrace("Already initialised - use \"clear iMatlab\" to restart\n");
+        std::cerr<<"Already initialised - use \"clear mexmoos\" to restart\n";
         return true;
     }
-    MOOSTrace("*********** iMatlab Initialising ***********\n");
-    MOOSTrace("* A box of MOOS accessories                *\n");
-    MOOSTrace("* P. Newman                                *\n");
-    MOOSTrace("* Oxford 2005                              *\n");
-    MOOSTrace("********************************************\n");
+    MOOSTrace("* mexmoos initialising *\n");
     
     //get our default args
     FillDefaultArgMap();
@@ -362,7 +366,7 @@ bool Initialise(int nlhs, mxArray *plhs[], const mxArray *prhs[], int nrhs)
                 {
                     mexErrMsgTxt("Incorrect param value pair (not a string)");
                 }
-                MOOSTrace("Read String %s\n",sParam.c_str());
+                //MOOSTrace("Read String %s\n",sParam.c_str());
                 
                 const mxArray *p = prhs[i+1];
                 
@@ -426,67 +430,25 @@ bool Initialise(int nlhs, mxArray *plhs[], const mxArray *prhs[], int nrhs)
     {
         mexPrintf("Property %-25s  %s\n",p->first.c_str(),(p->second).Str().c_str());
     }
-    
+
     
     //waht to do when we exit?
     mexAtExit(OnExit);
     
     
-    //set up a file reader
-    Param N;
-    std::string sMOOSName = "mex-moos";
-    if(!GetParam("MOOSNAME",N))
-    {
-        MOOSTrace("No MOOSName found assuming default of %s\n",sMOOSName.c_str());
-    }
-    else
-    {
-        sMOOSName = N.sVal;
-    }
-    gConfigReader.SetAppName(sMOOSName.c_str());
-    
-    //list of al out settings
-    STRING_LIST ConfigFileParams;
-    
-    Param P;
-    if(!GetParam("CONFIG_FILE",P))
-    {
-        MOOSTrace("No configuration file found\n");
-    }
-    else
-    {
-        if(!gConfigReader.SetFile(P.sVal))
-        {
-            MOOSTrace("Failed to set configuration file");            
-        }
-        else
-        {
-            if(!gConfigReader.GetConfiguration(gConfigReader.GetAppName(),ConfigFileParams))
-            {
-                MOOSTrace("Failed to read configuration block for %s file %s",
-                    gConfigReader.GetAppName().c_str(),
-                    gConfigReader.GetFileName().c_str());
-                return false;
-            }
-            else
-            {
-            }
-        }
-    }
 
     // tes 2012-06-20 - write iMatlab configuration to return value [config] = iMatlab('init', ... );
     if(nlhs == 1)
     {
         // transform STRING_LIST into map of key onto values
         std::map<std::string, std::vector<std::string> > params;
-        for (STRING_LIST::const_iterator q = ConfigFileParams.begin();q != ConfigFileParams.end(); ++q)
+
+        ARGMAP::iterator p;
+        for(p = gArgMap.begin();p!=gArgMap.end();p++)
         {
-        	std::string sTok,sVal;
-        	if(gConfigReader.GetTokenValPair(*q, sTok, sVal))
-        	{
-        		params[sTok].push_back(sVal);
-        	}
-        }        
+            params[p->first].push_back(GetParamAsString(p->first));
+
+        }
 
         const int NUMBER_OF_STRUCTS = 1;
         const int NUMBER_OF_FIELDS = params.size();
@@ -516,100 +478,48 @@ bool Initialise(int nlhs, mxArray *plhs[], const mxArray *prhs[], int nrhs)
         
     }
 
-    
-    std::string sBool;
-    
-    //DO WE WANT MOOS COMMS?
-    if(gConfigReader.GetConfigurationParam("MOOSComms",sBool))
+
+    if(!GetStringParam("MOOSNAME",sMOOSName))
     {
-        if(MOOSStrCmp(sBool,"TRUE"))
-        {
-            MOOSTrace("Setting Up MOOS Comms\n");
-            
-            if(!gConfigReader.GetValue("SERVERHOST",sServerHost))
-            {
-                MOOSTrace("Warning Server host not read from mission file: assuming LOCALHOST\n");
-                sServerHost = "LOCALHOST";
-            }
-            
-            
-            if(!gConfigReader.GetValue("SERVERPORT",sServerPort))
-            {
-                MOOSTrace("Warning Server port not read from mission file: assuming 9000\n");
-                sServerPort = "9000";
-            }
-            
-            long lServerPort = atoi(sServerPort.c_str());
-            
-            if(lServerPort==0)
-            {
-                lServerPort = 9000;
-                MOOSTrace("Warning Server port not read from mission file: assuming 9000\n");
-            }
-            
-            
-            double dfTimeOut;
-            if(gConfigReader.GetValue("SERIAL_TIMEOUT",dfTimeOut))
-            {
-                SetParam("SERIAL_TIMEOUT",dfTimeOut);
-            }
-            
-            //do we have any programmed subscriptions?
-            STRING_LIST::iterator t;
-            for(t = ConfigFileParams.begin();t!=ConfigFileParams.end();t++)
-            {
-                std::string sTok,sVal;
-                if(gConfigReader.GetTokenValPair(*t,sTok,sVal))
-                {
-                    if(MOOSStrCmp(sTok,"SUBSCRIBE"))
-                    {
-                        std::string sWhat = MOOSChomp(sVal,"@");
-                        MOOSTrimWhiteSpace(sWhat);
-                        double dfT = atof(sVal.c_str());
-                        Registrations.insert( REGINFO(sWhat,dfT) );
-                        MOOSTrace("Adding Registration for \"%s\" every %f seconds \n",sWhat.c_str(),dfT);
-                    }
-                }
-            }
-            
-            
-            //here we launch the comms
-            if(pComms==NULL)
-            {
-                //pComms = new CMOOSCommClient;
-                pComms = new MOOS::MOOSAsyncCommClient;
-                pComms->SetOnConnectCallBack(OnMOOSConnect,NULL);
-                pComms->Run(sServerHost.c_str(),lServerPort,sMOOSName.c_str());
-            }
-            
-        }
+        std::cerr<<"major error cannot retrieve MOOSName";
+        return false;
     }
-    
-    //DO WE WANT SERIAL COMMS?
-    if(gConfigReader.GetConfigurationParam("SerialComms",sBool))
+
+    if(!GetStringParam("SERVERHOST",sServerHost))
     {
-        if(MOOSStrCmp(sBool,"TRUE"))
-        {
-            
-            MOOSTrace("Setting Up Serial  Comms\n");
-            if(!gPort.Configure(ConfigFileParams))
-            {
-                MOOSTrace("Failed to open serial port\n");
-            }
-            else
-            {
-                MOOSTrace("Port %s opened succesfully %s at %d BPS\n", 
-                    gPort.GetPortName().c_str(),
-                    gPort.IsStreaming()?"streaming":"polled",
-                    gPort.GetBaudRate());
-                
-                SetParam("SERIAL",1.0);
-                
-                MOOSTrace("Beware - this release only supports receiving ASCII strings\n");
-            }
-        }
+        std::cerr<<"major error cannot retrieve SERVERHOST";
+        return false;
     }
-    
+
+    if(!GetStringParam("SERVERPORT",sServerPort))
+    {
+        std::cerr<<"major error cannot retrieve SERVERPORT";
+        return false;
+    }
+    else
+    {
+        if(!MOOSIsNumeric(sServerPort))
+        {
+            std::cerr<<"major SERVERPORT is not a number";
+            return false;
+        }
+        lServerPort = atoi(sServerPort.c_str());
+    }
+
+
+    //here we launch the comms
+    if(pComms==NULL)
+    {
+        //pComms = new CMOOSCommClient;
+        pComms = new MOOS::MOOSAsyncCommClient;
+        MOOS::ConsoleColours::Enable(false);
+
+        pComms->SetOnConnectCallBack(OnMOOSConnect,NULL);
+        pComms->Run(sServerHost.c_str(),lServerPort,sMOOSName.c_str());
+    }
+            
+
+
     bInitialised = true;
     return bInitialised;
 }
@@ -617,29 +527,65 @@ bool Initialise(int nlhs, mxArray *plhs[], const mxArray *prhs[], int nrhs)
 
 void PrintHelp()
 {
-    
-    std::ifstream HelpFile("iMatlab.help");
-    
-    if(HelpFile.is_open())
-    {
-        while(!HelpFile.eof())
-        {
-            char Line[1024];
-            HelpFile.getline(Line,sizeof(Line));
-            mexPrintf("%s\n",Line);
-        }
-    }
-    else
-    {
-        mexPrintf("help file \"iMatlab.help\" not found\n");
-    }
+
+    std::cout<<
+            "\n\n** mexmoos:  an interface for MOOS communications inside matlab **\n\n"
+            "usage:\n\n"
+            "a) Initialisation\n"
+            "-----------------------------\n\n"
+            "     mexmoos('init')\n\n"
+            "   or\n\n"
+            "     mexmoos('init',config_param_name,config_param_val,....)\n\n"
+            "   Where <config_param_name,config_param_val> are parameter value pairs.\n"
+            "   All initialisation parameters are strings. The following are supported. \n\n"
+            "     SERVERHOST name of machine hosting DB (default localhost)\n"
+            "     SERVERPORT port (as string e.g '9001') on which DB is serving (default 9000)\n"
+            "     MOOSNAME   name with which to register (default mexmoos)\n"
+            "\n\n"
+            "   example:\n"
+            "     mexmoos('init','SERVERHOST','vader.robots.ox.ac.uk','MOOSNAME','the-darkness')\n\n"
+            ""
+            "b) Registration\n"
+            "-----------------------------\n\n"
+            "    mexmoos('REGISTER',varname,period)\n\n"
+            "  examples\n\n"
+            "    mexmoos('REGISTER','laser2d',0.0)\n"
+            "    mexmoos('REGISTER','laser2d',0.1)\n\n"
+            "  The legacy command MOOS_REGISTER can be substituted for  'REGISTER'\n\n"
+            "c) Notification (Sending)\n"
+            "-----------------------------\n\n"
+            "    mexmoos('NOTIFY',varname,data)\n\n"
+            "  examples\n\n"
+            "    mexmoos('NOTIFY','varA',pi)\n"
+            "    mexmoos('NOTIFY','varA','hello world')\n"
+            "    mexmoos('NOTIFY','varA',zeros(1,3,'uint8'))\n\n"
+            "  The legacy command 'MOOS_MAIL_TX' can be substituted for 'NOTIFY'\n\n"
+            ""
+            "d) Receiving (Reading)\n"
+            "-----------------------------\n\n"
+            "    mexmoos('FETCH')\n\n"
+            "  example\n\n"
+            "    msgs=mexmoos('FETCH')\n\n"
+            "\n"
+            "  Returns an array of msg structures - each containing moos message data.\n"
+            "  The legacy command 'MOOS_MAIL_RX' can be substituted for  'FETCH'\n\n"
+
+            ""
+            "e) Closing\n"
+            "-----------------------------\n\n"
+            "    mexmoos('CLOSE')\n\n"
+            "e) Help\n"
+            "-----------------------------\n\n"
+            "    mexmoos('HELP')\n\n";
+
+
     
 }
 
 
 
 //--------------------------------------------------------------
-// function: iMatlab - Entry point from Matlab environment (via 
+// function: mex_moos - Entry point from Matlab environment (via
 //   mexFucntion(), below)
 // INPUTS:
 //   nlhs - number of left hand side arguments (outputs)
@@ -648,7 +594,7 @@ void PrintHelp()
 //   nrhs - number of right hand side arguments (inputs)
 //   prhs[] - pointer to table of input matrices
 //--------------------------------------------------------------
-void iMatlab( int nlhs, mxArray *plhs[], int nrhs, const mxArray  *prhs[] )
+void mex_moos( int nlhs, mxArray *plhs[], int nrhs, const mxArray  *prhs[] )
 {
     // TODO: Add your application code here
     if(nrhs==0)
@@ -670,318 +616,234 @@ void iMatlab( int nlhs, mxArray *plhs[], int nrhs, const mxArray  *prhs[] )
     if(MOOSStrCmp(sCmd,"INIT"))
     {
         Initialise(nlhs, plhs, prhs,nrhs);
+        return;
     }
-    else
+    else if(MOOSStrCmp(sCmd,"HELP"))
     {
-        if(!bInitialised)
-        {
-            MOOSTrace("iMatlab is not initialised - must call \"iMatlab('init')\" first\n");
-        }
-        /// SENDING MOOS MAIL
-        else if(MOOSStrCmp(sCmd,"MOOS_MAIL_TX"))
-        {
-            if(nrhs<3)
-            {
-                MOOSTrace("Incorrect format : 'MOOS_MAIL_TX','VAR_NAME'.VarVal (string, double or uint8)\n");
-                return ;
-            }
-            std::string sKey;
-            if(!Matlab2String(sKey,prhs[1]))
-            {
-                mexErrMsgTxt("Param 2 (key) must be a string name of the data being sent\n");
-            }
-            
-            if(pComms && pComms->IsConnected())
-            {
-                double dfTime=MOOSTime();
-                if(nrhs==4 && ! Matlab2Double(dfTime,prhs[3]))
-                {
-                    mexErrMsgTxt("parameter 4 must be a  double time\n");
-                }
-                
-                std::string sTmp;
-                double dfTmp;
-                std::vector<uint8_t> bTmp;
-                if(Matlab2String(sTmp,prhs[2]))
-                {
-                    pComms->Notify(sKey,sTmp,dfTime);
-                }
-                else if(Matlab2Double(dfTmp,prhs[2]))
-                {
-                    pComms->Notify(sKey,dfTmp,dfTime);
-                }
-                else if(Matlab2Binary(bTmp,prhs[2]))
-                {
-                  pComms->Notify(sKey, bTmp, dfTime);
-                }
-                else
-                {
-                    mexErrMsgTxt("MOOS transmit failed parameter 3 must be a string or double data value\n");
-                }
-            }
-            else
-            {
-                mexErrMsgTxt("MOOS transmit failed - not connected\n");
-            }            
-        }
-        //COLLECTING MOOS MAIL FROM COMMS THREAD
-        else if(MOOSStrCmp(sCmd,"MOOS_MAIL_RX"))
-        {
-            if(pComms->IsConnected())
-            {
-                MOOSMSG_LIST NewMail;
-                if(pComms->Fetch(NewMail))
-                {
-                    //how many have we got?
-                    int nMsgs = NewMail.size();
-                    
-                    if(nlhs==1)
-                    {
-       
+        PrintHelp();
+        return;
+    }
 
-            //make a struct array
+    if(!bInitialised)
+    {
+        MOOSTrace("iMatlab is not initialised - must call \"iMatlab('init')\" first\n");
+        return;
+    }
 
-                        DIM_TYPE  DimArray[2];
-			            DimArray[0] = 1;DimArray[1] = nMsgs;
-                        
-                                    const char * FieldNames[] = {"KEY","TYPE","TIME","STR","DBL","BIN","SRC","ORIGINATING_COMMUNITY"};
-                        plhs[0] = mxCreateStructArray(2, DimArray, sizeof(FieldNames)/sizeof(char*),FieldNames);
-                        
-                        int nKeyField = mxGetFieldNumber(plhs[0],FieldNames[0]);
-                        int nTypeField = mxGetFieldNumber(plhs[0],FieldNames[1]);
-                        int nTimeField = mxGetFieldNumber(plhs[0],FieldNames[2]);
-                        int nStrField = mxGetFieldNumber(plhs[0],FieldNames[3]);
-                        int nDblField = mxGetFieldNumber(plhs[0],FieldNames[4]);
-                        int nBinField = mxGetFieldNumber(plhs[0],FieldNames[5]);
-                        int nSrcField = mxGetFieldNumber(plhs[0],FieldNames[6]);
-                        int nCommunityField = mxGetFieldNumber(plhs[0],FieldNames[7]);
-                        
-                        
-                        MOOSMSG_LIST::iterator p;
-                        
-                        int i = 0;
-                        for(p = NewMail.begin();p!=NewMail.end();p++,i++)
-                        {
-                            //copy in the Key of the variable
-                            mxSetFieldByNumber(plhs[0],i,nKeyField,mxCreateString(p->m_sKey.c_str()));
-                            
-                            //copy in the type
-                            std::string pType("UNKNOWN");
-                            if (p->IsDataType(MOOS_DOUBLE)) {
-                              pType = "DBL";
-                            } else if (p->IsDataType(MOOS_STRING)) {
-                              pType = "STR";
-                            } else if (p->IsDataType(MOOS_BINARY_STRING)) {
-                              pType = "BIN";
-                            }
-                            //char * pType = (char*)(p->IsDataType(MOOS_DOUBLE) ? "DBL":"STR");
-                            mxSetFieldByNumber(plhs[0],i,nTypeField,mxCreateString(pType.c_str()));
-                            
-                            //copy in time
-                            mxSetFieldByNumber(plhs[0],i,nTimeField,mxCreateDoubleScalar(p->GetTime()));
-                            
-                            //copy in sVal
-                            mxSetFieldByNumber(plhs[0],i,nStrField,mxCreateString(p->m_sVal.c_str()));
-                            
-                            //copy in dfVal
-                            mxSetFieldByNumber(plhs[0],i,nDblField,mxCreateDoubleScalar(p->GetDouble()));
 
-                            //copy in bVal
-                            const std::vector<uint8_t> binaryData = p->GetBinaryDataAsVector();
-                            mxArray* binaryDataMatlab = mxCreateNumericMatrix(1, binaryData.size(),
-                                                                              mxUINT8_CLASS, mxREAL);
-                            std::copy(binaryData.begin(),
-                                      binaryData.end(),
-                                      static_cast<uint8_t*>(mxGetData(binaryDataMatlab)));
-                            mxSetFieldByNumber(plhs[0],i,nBinField,binaryDataMatlab);
-                            
-                            //copy in src process
-                            mxSetFieldByNumber(plhs[0],i,nSrcField,mxCreateString(p->m_sSrc.c_str()));
-                            
-                            //copy in originating community
-                            mxSetFieldByNumber(plhs[0],i,nCommunityField,mxCreateString(p->m_sOriginatingCommunity.c_str()));                                                                
-                            
-                        }
-                    }
-                    else
-                    {
-                        MOOSTrace("Picked up %d MOOSMsgs - but no output variables to return them in!\n",nMsgs);
-                    }
-                    
-                }
-                else
-                {
-                    //the Fethc failed but we are connected - probably no data
-                    //make a struct array
-                    DIM_TYPE DimArray[2];DimArray[0] = 1;DimArray[1] = 0;
-                    const char * FieldNames[] = {"KEY","TYPE","TIME","STR","DBL","BIN","SRC","ORIGINATING_COMMUNITY"};
-                    plhs[0] = mxCreateStructArray(2, DimArray, sizeof(FieldNames)/sizeof(char*),FieldNames);
-                }
+
+    /// SENDING MOOS MAIL
+    if(MOOSStrCmp(sCmd,"MOOS_MAIL_TX") || MOOSStrCmp(sCmd,"NOTIFY") )
+    {
+        if(nrhs<3)
+        {
+            MOOSTrace("Incorrect format : 'MOOS_MAIL_TX','VAR_NAME'.VarVal (string, double or uint8)\n");
+            return ;
+        }
+        std::string sKey;
+        if(!Matlab2String(sKey,prhs[1]))
+        {
+            mexErrMsgTxt("Param 2 (key) must be a string name of the data being sent\n");
+        }
+
+        if(pComms && pComms->IsConnected())
+        {
+            double dfTime=MOOSTime();
+            if(nrhs==4 && ! Matlab2Double(dfTime,prhs[3]))
+            {
+                mexErrMsgTxt("parameter 4 must be a  double time\n");
+            }
+
+            std::string sTmp;
+            double dfTmp;
+            std::vector<uint8_t> bTmp;
+            if(Matlab2String(sTmp,prhs[2]))
+            {
+                pComms->Notify(sKey,sTmp,dfTime);
+            }
+            else if(Matlab2Double(dfTmp,prhs[2]))
+            {
+                pComms->Notify(sKey,dfTmp,dfTime);
+            }
+            else if(Matlab2Binary(bTmp,prhs[2]))
+            {
+                pComms->Notify(sKey, bTmp, dfTime);
             }
             else
             {
-                MOOSTrace("No MOOS connection established Mail Rx failed\n");
-                DIM_TYPE DimArray[2];DimArray[0] = 1;DimArray[1] = 0;
-                const char * FieldNames[] = {"KEY","TYPE","TIME","STR","DBL","BIN","SRC","ORIGINATING_COMMUNITY"};
-                plhs[0] = mxCreateStructArray(2, DimArray, sizeof(FieldNames)/sizeof(char*),FieldNames);
-                
-                
-                return;
-            }
-        }
-        //REGISTERING FOR MAIL
-        else if(MOOSStrCmp(sCmd,"MOOS_REGISTER"))
-        {
-            if(nrhs!=3)
-            {
-                MOOSTrace("incorrect format. Use iMatlab('MOOS_REGISTER','WHAT',HOW_OFTEN\n");
-                return;
-            }
-            else
-            {
-                
-                std::string sWhat;
-                
-                if(!Matlab2String(sWhat,prhs[1]))
-                {
-                    MOOSTrace("incorrect format parameter 2 must be a string\n");
-                    return;
-                }
-                double dfHowOften;
-                if(!Matlab2Double(dfHowOften,prhs[2]))
-                {
-                    MOOSTrace("incorrect format parameter 3 must be a double (min period between messages)\n");
-                    return;
-                }
-                
-                //save the information
-                Registrations.insert( REGINFO(sWhat,dfHowOften) );
-                
-                //reregister
-                DoRegistrations();
-            }
-        }
-        //PAUSING
-        else if(MOOSStrCmp(sCmd,"MOOS_PAUSE"))
-        {
-            double dfT;
-            if(!Matlab2Double(dfT,prhs[1]))
-            {
-                MOOSFail("incoorect MOOS_PAUSE format - param 2 must be  numeric seconds\n");
-                return;
-            }
-            MOOSPause(static_cast<int> (dfT*1000.0));
-        }
-        //SENDING SERIAL DATA
-        else if(MOOSStrCmp(sCmd,"SERIAL_TX"))
-        {
-            if(GetParam("SERIAL")==0.0)
-            {
-                MOOSTrace("No serial comms configured -> can't call SERIAL_TX\n");
-            }
-            else
-            {
-                if(nrhs<2)
-                {
-                    MOOSTrace("Incorrect format 'SERIAL_TX',DataToSend ");
-                    return;
-                }
-                
-                //OK we could be sending binary or ASCII - nothing else is OK
-                switch(mxGetClassID(prhs[1]))
-                {
-                case mxUINT8_CLASS:
-                case mxCHAR_CLASS:
-                    {
-                        int nLen = mxGetNumberOfElements(prhs[1]);
-                        char * pOp = (char *)mxGetData(prhs[1]);
-                        int nWritten = gPort.Write(pOp,nLen);
-                        if(nWritten!=nLen)
-                        {
-                            MOOSTrace("Failed to write %d bytes of data, wrote %d - oops\n",nLen,nWritten);
-                            return;
-                        }
-                    }
-                    break;
-                    
-                default:
-                    MOOSTrace("Problem: cannot send data of type \"%s\" must be UINT8 ot CHAR\n",mxGetClassName(prhs[1]));
-                    return;
-                }
-                
-            }
-        }
-        //RECEIVING SERIAL DATA
-        else if(MOOSStrCmp(sCmd,"SERIAL_RX"))
-        {
-            if(GetParam("SERIAL")==0.0)
-            {
-                MOOSTrace("No serial comms configured -> can't call SERIAL_RX\n");
-            }
-            else
-            {
-                std::string sRx;double dfTime;
-                typedef std::pair< std::string, double > TG;
-                typedef std::vector<TG >  TGL;
-                
-                //a list of telegrams
-                TGL RxL;
-                
-                if(gPort.IsStreaming())
-                {
-                    //suck em up...
-                    while(gPort.GetLatest(sRx,dfTime))
-                    {
-                        RxL.push_back( TG(sRx,dfTime) );
-                    }
-                }
-                else
-                {
-                    //just read one
-                    if(gPort.GetTelegram(sRx,GetParam("SERIAL_TIMEOUT").dfVal,&dfTime))
-                    {
-                        RxL.push_back( TG(sRx,dfTime) );
-                    }
-                }
-                
-                if(nlhs>0)
-                {
-                    
-                    DIM_TYPE DimArray[2];DimArray[0] = 1;DimArray[1] = RxL.size();
-                    const char * FieldNames[2] = {"STR","TIME"};
-                    plhs[0] = mxCreateStructArray(2, DimArray, 2, FieldNames);
-                    
-                    int nStrField = mxGetFieldNumber(plhs[0],FieldNames[0]);
-                    int nTimeField = mxGetFieldNumber(plhs[0],FieldNames[1]);
-                    
-                    for (unsigned int i=0; i<RxL.size(); i++) 
-                    {
-                        
-                        //copy in the string Rx'd
-                        mxSetFieldByNumber(plhs[0],i,nStrField,mxCreateString(RxL[i].first.c_str()));
-                        
-                        //copy in the time
-                        mxArray * pTmp = mxCreateDoubleMatrix(1,1,mxREAL);                        
-                        *mxGetPr(pTmp) = RxL[i].second;
-                        mxSetFieldByNumber(plhs[0],i,nTimeField,pTmp);
-                    }
-                }
-                else
-                {
-                    MOOSTrace("Rx'd %d telegrams\n",RxL.size());                    
-                }
-                
+                mexErrMsgTxt("MOOS transmit failed parameter 3 must be a string or double data value\n");
             }
         }
         else
         {
-            MOOSTrace("Huh? - command %s is not known\n",sCmd.c_str());
+            mexErrMsgTxt("MOOS transmit failed - not connected\n");
         }
     }
+    //COLLECTING MOOS MAIL FROM COMMS THREAD
+    else if(MOOSStrCmp(sCmd,"MOOS_MAIL_RX") ||  MOOSStrCmp(sCmd,"FETCH") )
+    {
+        if(pComms->IsConnected())
+        {
+            MOOSMSG_LIST NewMail;
+            if(pComms->Fetch(NewMail))
+            {
+                //how many have we got?
+                int nMsgs = NewMail.size();
+
+                if(nlhs==1)
+                {
+
+
+                    //make a struct array
+
+                    DIM_TYPE  DimArray[2];
+                    DimArray[0] = 1;DimArray[1] = nMsgs;
+
+                    const char * FieldNames[] = {"KEY","TYPE","TIME","STR","DBL","BIN","SRC","ORIGINATING_COMMUNITY"};
+
+                    plhs[0] = mxCreateStructArray(2, DimArray, sizeof(FieldNames)/sizeof(char*),FieldNames);
+
+                    int nKeyField = mxGetFieldNumber(plhs[0],FieldNames[0]);
+                    int nTypeField = mxGetFieldNumber(plhs[0],FieldNames[1]);
+                    int nTimeField = mxGetFieldNumber(plhs[0],FieldNames[2]);
+                    int nStrField = mxGetFieldNumber(plhs[0],FieldNames[3]);
+                    int nDblField = mxGetFieldNumber(plhs[0],FieldNames[4]);
+                    int nBinField = mxGetFieldNumber(plhs[0],FieldNames[5]);
+                    int nSrcField = mxGetFieldNumber(plhs[0],FieldNames[6]);
+                    int nCommunityField = mxGetFieldNumber(plhs[0],FieldNames[7]);
+
+
+                    MOOSMSG_LIST::iterator p;
+
+                    int i = 0;
+                    for(p = NewMail.begin();p!=NewMail.end();p++,i++)
+                    {
+                        //copy in the Key of the variable
+                        mxSetFieldByNumber(plhs[0],i,nKeyField,mxCreateString(p->m_sKey.c_str()));
+                        
+                        //copy in the type
+                        std::string pType("UNKNOWN");
+                        if (p->IsDataType(MOOS_DOUBLE)) {
+                          pType = "DBL";
+                        } else if (p->IsDataType(MOOS_STRING)) {
+                          pType = "STR";
+                        } else if (p->IsDataType(MOOS_BINARY_STRING)) {
+                          pType = "BIN";
+                        }
+                        //char * pType = (char*)(p->IsDataType(MOOS_DOUBLE) ? "DBL":"STR");
+                        mxSetFieldByNumber(plhs[0],i,nTypeField,mxCreateString(pType.c_str()));
+                        
+                        //copy in time
+                        mxSetFieldByNumber(plhs[0],i,nTimeField,mxCreateDoubleScalar(p->GetTime()));
+                        
+                        //copy in sVal
+                        mxSetFieldByNumber(plhs[0],i,nStrField,mxCreateString(p->m_sVal.c_str()));
+                        
+                        //copy in dfVal
+                        mxSetFieldByNumber(plhs[0],i,nDblField,mxCreateDoubleScalar(p->GetDouble()));
+
+                        //copy in bVal
+                        const std::vector<uint8_t> binaryData = p->GetBinaryDataAsVector();
+                        mxArray* binaryDataMatlab = mxCreateNumericMatrix(1, binaryData.size(),
+                                                                          mxUINT8_CLASS, mxREAL);
+                        std::copy(binaryData.begin(),
+                                  binaryData.end(),
+                                  static_cast<uint8_t*>(mxGetData(binaryDataMatlab)));
+                        mxSetFieldByNumber(plhs[0],i,nBinField,binaryDataMatlab);
+
+                        //copy in src process
+                        mxSetFieldByNumber(plhs[0],i,nSrcField,mxCreateString(p->m_sSrc.c_str()));
+
+                        //copy in originating community
+                        mxSetFieldByNumber(plhs[0],i,nCommunityField,mxCreateString(p->m_sOriginatingCommunity.c_str()));
+
+                    }
+                }
+                else
+                {
+                    MOOSTrace("Picked up %d MOOSMsgs - but no output variables to return them in!\n",nMsgs);
+                }
+
+            }
+            else
+            {
+                //the Fetch failed but we are connected - probably no data
+                //make a struct array
+                DIM_TYPE DimArray[2];DimArray[0] = 1;DimArray[1] = 0;
+                const char * FieldNames[] = {"KEY","TYPE","TIME","STR","DBL","BIN","SRC","ORIGINATING_COMMUNITY"};
+                plhs[0] = mxCreateStructArray(2, DimArray, sizeof(FieldNames)/sizeof(char*),FieldNames);
+            }
+        }
+        else
+        {
+            MOOSTrace("No MOOS connection established Mail Rx failed\n");
+            DIM_TYPE DimArray[2];DimArray[0] = 1;DimArray[1] = 0;
+            const char * FieldNames[] = {"KEY","TYPE","TIME","STR","DBL","BIN","SRC","ORIGINATING_COMMUNITY"};
+            plhs[0] = mxCreateStructArray(2, DimArray, sizeof(FieldNames)/sizeof(char*),FieldNames);
+
+
+            return;
+        }
+    }
+    //REGISTERING FOR MAIL
+    else if(MOOSStrCmp(sCmd,"MOOS_REGISTER") || MOOSStrCmp(sCmd,"REGISTER") )
+    {
+        if(nrhs!=3)
+        {
+            MOOSTrace("incorrect format. Use iMatlab('MOOS_REGISTER','WHAT',HOW_OFTEN\n");
+            return;
+        }
+        else
+        {
+
+            std::string sWhat;
+
+            if(!Matlab2String(sWhat,prhs[1]))
+            {
+                MOOSTrace("incorrect format parameter 2 must be a string\n");
+                return;
+            }
+            double dfHowOften;
+            if(!Matlab2Double(dfHowOften,prhs[2]))
+            {
+                MOOSTrace("incorrect format parameter 3 must be a double (min period between messages)\n");
+                return;
+            }
+
+            //save the information
+            Registrations.insert( REGINFO(sWhat,dfHowOften) );
+
+            //reregister
+            DoRegistrations();
+        }
+    }
+    //PAUSING
+    else if(MOOSStrCmp(sCmd,"MOOS_PAUSE"))
+    {
+        double dfT;
+        if(!Matlab2Double(dfT,prhs[1]))
+        {
+            MOOSFail("incorrect MOOS_PAUSE format - param 2 must be  numeric seconds\n");
+            return;
+        }
+        MOOSPause(static_cast<int> (dfT*1000.0));
+
+    }
+    //REGISTERING FOR MAIL
+    else if(MOOSStrCmp(sCmd,"CLOSE"))
+    {
+        OnExit();
+        return;
+    }
+    else
+    {
+        MOOSTrace("Huh? - command %s is not known\n",sCmd.c_str());
+    }
+
     
     
     
-} // end iMatlab()
+} // end mex_moos()
 
 
 
@@ -992,7 +854,7 @@ extern "C" {
     //--------------------------------------------------------------
     void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray  *prhs[] )
     {
-        iMatlab(nlhs, plhs, nrhs, prhs);
+        mex_moos(nlhs, plhs, nrhs, prhs);
     }
 }
 

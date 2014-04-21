@@ -2,12 +2,6 @@ cmake_minimum_required(VERSION 2.8)
 project(mex-moos)
 include(ExternalProject)
 
-set(EPN PRIVATE_MOOS)
-
-
-set(${EPN}_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/${EPN}")
-set(${EPN}_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/${EPN}")
-set(${EPN}_BUILD_DIR ${${EPN}_INSTALL_DIR}/build)
 
 
 set(CMakeScripts_MODULE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
@@ -44,6 +38,12 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 endif()
 
 
+#build a private MOOS (this could be conditional on above - need to do that)
+set(EPN PRIVATE_MOOS)
+set(${EPN}_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/${EPN}")
+set(${EPN}_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/${EPN}")
+set(${EPN}_BUILD_DIR ${${EPN}_INSTALL_DIR}/build)
+
 
 
 
@@ -51,12 +51,11 @@ set(${EPN}_CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${${EPN}_INSTALL_DIR};-DENABLE_EXPO
 
 #message("${EPN}_PREFIX= '${${EPN}_PREFIX}'")
 #message("${EPN}_INSTALL_DIR='${${EPN}_INSTALL_DIR}'")
-message("${EPN}_CMAKE_ARGS='${${EPN}_CMAKE_ARGS}'")
+#message("${EPN}_CMAKE_ARGS='${${EPN}_CMAKE_ARGS}'")
 #message("GIT_EXECUTABLE='${GIT_EXECUTABLE}'")
 
 ExternalProject_Add(${EPN}
   PREFIX ${${EPN}_PREFIX}
-  #GIT_REPOSITORY https://github.com/themoos/core-moos.git
   GIT_REPOSITORY https://github.com/themoos/core-moos.git
   GIT_TAG devel
   BINARY_DIR ${${EPN}_BUILD_DIR}
@@ -72,7 +71,7 @@ if(NOT MOOS_FOUND)
 	return()
 endif()
 
-find_package( Matlab QUIET )
+find_package( Matlab REQUIRED )
 if(NOT MATLAB_FOUND)
   message(STATUS "Did not find MATLAB, disabling ${MRG_LIBRARY_FULL_NAME} mex "
     "wrappers, set MATLAB_ROOT for MATLAB support.")
@@ -137,7 +136,6 @@ add_custom_command( OUTPUT ${${MRG_LIBRARY_FULL_NAME}_MEX_FILE}
   ARGS -DSOPHUS_DISABLE_ENSURES
   ${MEX_BUILD_INCLUDE_DIRS_CMDS}
   ${FORCE_AND_FIX_MEX_TO_USE_RPATH_LINKING_ARGS}
-  #-L${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
   -L${${EPN}_BUILD_DIR}/lib
   -l${MOOS_LIBRARIES}
   -output ${${MRG_LIBRARY_FULL_NAME}_MEX_FILE}
@@ -155,12 +153,12 @@ add_custom_target( ${${MRG_LIBRARY_FULL_NAME}_MEX_TARGET}
 
 
   
-  add_custom_target(copy)
-  add_custom_command(TARGET copy PRE_BUILD
-                     COMMAND ${CMAKE_COMMAND} -E
-                         copy ${CMAKE_CURRENT_SOURCE_DIR}/mex-moos.moos ${CMAKE_CURRENT_BINARY_DIR} )
+#add_custom_target(copy)
+#add_custom_command(TARGET copy PRE_BUILD
+#                     COMMAND ${CMAKE_COMMAND} -E
+#                         copy ${CMAKE_CURRENT_SOURCE_DIR}/mex-moos.moos ${CMAKE_CURRENT_BINARY_DIR} )
   
-  add_dependencies(${${MRG_LIBRARY_FULL_NAME}_MEX_TARGET} copy) 
+#add_dependencies(${${MRG_LIBRARY_FULL_NAME}_MEX_TARGET} copy) 
   
   
 
