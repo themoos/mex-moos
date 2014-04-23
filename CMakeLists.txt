@@ -44,10 +44,12 @@ set(${EPN}_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/${EPN}")
 set(${EPN}_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/${EPN}")
 set(${EPN}_BUILD_DIR ${${EPN}_INSTALL_DIR}/build)
 
-
-
-
-set(${EPN}_CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${${EPN}_INSTALL_DIR};-DENABLE_EXPORT=OFF;-DUSE_LIBSTDCPP=${USE_LIBSTDCPP})
+set(${EPN}_CMAKE_ARGS "-DCMAKE_INSTALL_PREFIX=${${EPN}_INSTALL_DIR};-DENABLE_EXPORT=OFF")
+if (DEFINED USE_LIBSTDCPP)
+  # Avoid a CMake warning and only pass through the USE_LIBSTDCPP option
+  # if it exists, which will only happen on OS X >= Mavericks.
+  list(APPEND ${EPN}_CMAKE_ARGS "-DUSE_LIBSTDCPP=${USE_LIBSTDCPP}")
+endif()
 
 #message("${EPN}_PREFIX= '${${EPN}_PREFIX}'")
 #message("${EPN}_INSTALL_DIR='${${EPN}_INSTALL_DIR}'")
@@ -65,10 +67,10 @@ ExternalProject_Add(${EPN}
 )
 
 
-find_package(MOOS 10  CONFIG HINTS ${${EPN}_BUILD_DIR} NO_DEFAULT_PATH )
+find_package(MOOS 10 QUIET CONFIG HINTS ${${EPN}_BUILD_DIR} NO_DEFAULT_PATH)
 if(NOT MOOS_FOUND)
-	message("MOOS NOT FOUND BUT THATS OK. Continue to 'generate', run make, (MOOS will download), then run cmake  again....")
-	return()
+  message("MOOS NOT FOUND BUT THATS OK. Continue to 'generate', run make, (MOOS will download), then run cmake  again....")
+  return()
 endif()
 
 find_package( Matlab REQUIRED )
