@@ -67,7 +67,8 @@ ExternalProject_Add(${EPN}
 )
 
 
-find_package(MOOS 10 QUIET CONFIG HINTS ${${EPN}_BUILD_DIR} NO_DEFAULT_PATH)
+#find_package(MOOS 10 QUIET CONFIG HINTS ${${EPN}_BUILD_DIR} NO_DEFAULT_PATH)
+find_package(MOOS 10 QUIET  HINTS ${${EPN}_BUILD_DIR} NO_DEFAULT_PATH)
 if(NOT MOOS_FOUND)
   message("MOOS NOT FOUND BUT THATS OK. Continue to 'generate', run make, (MOOS will download), then run cmake  again....")
   return()
@@ -127,9 +128,16 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
   # spaces between it and the previous / next argument, see [1].
   #
   # [1]: http://www-01.ibm.com/support/docview.wss?uid=swg21329145
-  set(FORCE_AND_FIX_MEX_TO_USE_RPATH_LINKING_ARGS
-    "LDFLAGS='$$LDFLAGS,-rpath=${MATLAB_MEX_LIBRARIES_DIR},-rpath=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}'")
+  
+  option(FORCE_RPATH_LINKING "linking fix for up to r2013b" TRUE)
+  
+  if(FORCE_RPATH_LINKING)
+  	set(FORCE_AND_FIX_MEX_TO_USE_RPATH_LINKING_ARGS
+    	"LDFLAGS='$$LDFLAGS,-rpath=${MATLAB_MEX_LIBRARIES_DIR},-rpath=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}'")
+  endif()
 endif()
+
+
 # IMPORTANT: DO **NOT** add VERBATIM to the end of this add_custom_command(),
 #            it screws up the odd MEX_LD_FLAGS escaping (adds wrapping "" and
 #            does crazy things with the $LDFLAGS statement).
