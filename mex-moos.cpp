@@ -290,7 +290,8 @@ Param GetParam(std::string sName)
     }
     else
     {
-        MOOSTrace("Warning no such parameter %s %s\n",sName.c_str(),MOOSHERE);
+
+        mexPrintf("Warning no such parameter %s %s\n",sName.c_str(),MOOSHERE);
     }
     
     return NP;
@@ -304,13 +305,13 @@ void OnExit()
     
     if(pComms)
     {
-        std::cout<<"closing MOOS Comms... ";
+        mexPrintf("closing MOOS Comms... ");
 
         pComms->Close(true);
         delete pComms;
         pComms=NULL;
 
-        std::cout<<"done "<<std::endl;
+        mexPrintf("done \n");
 
     }
     bInitialised = false;
@@ -334,7 +335,7 @@ void DoRegistrations()
 
 bool OnMOOSConnect(void * pParam)
 {
-    std::cout<<"DB connection established"<<std::endl;
+    mexPrintf("DB connection established\n");
     DoRegistrations();
     return true;
 }
@@ -346,10 +347,10 @@ bool Initialise(int nlhs, mxArray *plhs[], const mxArray *prhs[], int nrhs)
     
     if(bInitialised)
     {
-        std::cerr<<"Already initialised - use \"clear mexmoos\" to restart\n";
+        mexPrintf("Already initialised - use \"clear mexmoos\" to restart\n");
         return true;
     }
-    MOOSTrace("* mexmoos initialising *\n");
+    mexPrintf("* mexmoos initialising *\n");
     
     //get our default args
     FillDefaultArgMap();
@@ -397,7 +398,7 @@ bool Initialise(int nlhs, mxArray *plhs[], const mxArray *prhs[], int nrhs)
                     }
                     break;
                 default:
-                    MOOSTrace("Failed to create a parameter\n");
+                    mexPrintf("Failed to create a parameter\n");
                     break;
                 }
                 
@@ -481,26 +482,26 @@ bool Initialise(int nlhs, mxArray *plhs[], const mxArray *prhs[], int nrhs)
 
     if(!GetStringParam("MOOSNAME",sMOOSName))
     {
-        std::cerr<<"major error cannot retrieve MOOSName";
+        mexErrMsgTxt("major error cannot retrieve MOOSName");
         return false;
     }
 
     if(!GetStringParam("SERVERHOST",sServerHost))
     {
-        std::cerr<<"major error cannot retrieve SERVERHOST";
+        mexErrMsgTxt("major error cannot retrieve SERVERHOST");
         return false;
     }
 
     if(!GetStringParam("SERVERPORT",sServerPort))
     {
-        std::cerr<<"major error cannot retrieve SERVERPORT";
+        mexErrMsgTxt("major error cannot retrieve SERVERPORT");
         return false;
     }
     else
     {
         if(!MOOSIsNumeric(sServerPort))
         {
-            std::cerr<<"major SERVERPORT is not a number";
+            mexErrMsgTxt("major SERVERPORT is not a number");
             return false;
         }
         lServerPort = atoi(sServerPort.c_str());
@@ -528,7 +529,7 @@ bool Initialise(int nlhs, mxArray *plhs[], const mxArray *prhs[], int nrhs)
 void PrintHelp()
 {
 
-    std::cout<<
+    mexPrintf(
             "\n\n** mexmoos:  an interface for MOOS communications inside matlab **\n\n"
             "usage:\n\n"
             "a) Initialisation\n"
@@ -576,7 +577,7 @@ void PrintHelp()
             "    mexmoos('CLOSE')\n\n"
             "e) Help\n"
             "-----------------------------\n\n"
-            "    mexmoos('HELP')\n\n";
+            "    mexmoos('HELP')\n\n");
 
 
     
