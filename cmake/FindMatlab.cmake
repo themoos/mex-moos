@@ -15,6 +15,12 @@
 #
 # Alex Stewart, Oxford Mobile Robotics Group (MRG) 2013
 
+function(update_cache_variable VAR_NAME VALUE)
+  get_property(HELP_STRING CACHE ${VAR_NAME} PROPERTY HELPSTRING)
+  get_property(VAR_TYPE CACHE ${VAR_NAME} PROPERTY TYPE)
+  set(${VAR_NAME} ${VALUE} CACHE ${VAR_TYPE} "${HELP_STRING}" FORCE)
+endfunction()
+
 if ( MATLAB_ROOT AND NOT MATLAB_ROOT STREQUAL MATLAB_ROOT_INTERNAL )
   # User has reset matlab root since last call, re-find it.
   set(MATLAB_FOUND FALSE)
@@ -22,6 +28,15 @@ endif()
 
 if( NOT MATLAB_FOUND )
   if( NOT MATLAB_ROOT )
+    # Create the user visible variable containing the root of the matlab
+    # version in use s/t even if we fail to find it, the user will be
+    # able to set it manually in the GUI.
+    #
+    # IMPORTANT: The DOCSTRING argument *MUST* be a single line, otherwise
+    #            it gets parsed as separate args and set() fails.
+    set(MATLAB_ROOT "" CACHE PATH
+      "Root directory (e.g. /Applications/MATLAB_R2011b.app) of MATLAB version to use")
+
     # Expand the symlink 'matlab' to /path/to/matlab (symlink).
     execute_process(
       COMMAND which matlab
@@ -44,19 +59,19 @@ if( NOT MATLAB_FOUND )
       execute_process(
         COMMAND readlink ${READLINK_ARGS} ${LOCATE_MATLAB_SYMLINK}
         RESULT_VARIABLE MATLAB_RESULT
-        OUTPUT_VARIABLE MATLAB_ROOT
-        ERROR_VARIABLE MATLAB_ROOT
+        OUTPUT_VARIABLE MATLAB_ROOT_LOCAL
+        ERROR_VARIABLE MATLAB_ROOT_LOCAL
         OUTPUT_STRIP_TRAILING_WHITESPACE
         ERROR_STRIP_TRAILING_WHITESPACE )
     endif()
 
-    if (EXISTS ${MATLAB_ROOT})
+    if (EXISTS ${MATLAB_ROOT_LOCAL})
       # Strip the trailing /bin/matlab from /abs/path/to/matlab/bin/matlab,
       # note that we call get_filename_component() twice, once to strip each
       # suffix.
-      get_filename_component(MATLAB_ROOT ${MATLAB_ROOT} PATH)
-      get_filename_component(MATLAB_ROOT ${MATLAB_ROOT} PATH)
-      message(STATUS "Found MATLAB at ${MATLAB_ROOT}")
+      get_filename_component(MATLAB_ROOT_LOCAL ${MATLAB_ROOT_LOCAL} PATH)
+      get_filename_component(MATLAB_ROOT_LOCAL ${MATLAB_ROOT_LOCAL} PATH)
+      message(STATUS "Found MATLAB at ${MATLAB_ROOT_LOCAL}")
     else()
       # Note <package>_FIND_[REQUIRED/QUIETLY] variables defined by FindPackage()
       # use the camelcase library name, not uppercase.
@@ -76,13 +91,13 @@ if( NOT MATLAB_FOUND )
           "the CMake GUI.")
       endif()
     endif()
+
+    # Save output to the (user visible) cache.
+    update_cache_variable(MATLAB_ROOT "${MATLAB_ROOT_LOCAL}")
   endif()
 
-  # Save output to the (user visible) cache.
-  set(MATLAB_ROOT ${MATLAB_ROOT} CACHE PATH
-    "Root directory (e.g. /Applications/MATLAB_R2011b.app) of MATLAB version to use")
   # Save private internal copy to catch changes.
-  set(MATLAB_ROOT_INTERNAL "${MATLAB_ROOT}")
+  set(MATLAB_ROOT_INTERNAL "${MATLAB_ROOT}" CACHE INTERNAL "" FORCE)
 
   # Find matlab libraries.
   find_path( MATLAB_INCLUDE_DIR mex.h
