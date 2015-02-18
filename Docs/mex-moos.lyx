@@ -1,0 +1,995 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass paper
+\begin_preamble
+\usepackage{verbatim}
+%\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{textcomp}
+\lstdefinestyle{Bash}
+{language=bash,
+keywordstyle=\color{blue},
+basicstyle=\ttfamily,
+morekeywords={moosuser@machine},
+alsoletter={:~$},
+morekeywords=[2]{moosuser@machine:},
+keywordstyle=[2]{\color{red}},
+literate={\$}{{\textcolor{red}{\$}}}1 
+         {:}{{\textcolor{red}{:}}}1
+         {~}{{\textcolor{red}{\textasciitilde}}}1,
+}
+
+\usepackage[usenames,dvipsnames]{xcolor}
+
+\usepackage{listings}
+\definecolor{codebg}{HTML}{E0E0F0}
+\lstset{
+tabsize=4,
+language=Python,
+        basicstyle=\small,
+        upquote=true,
+        %aboveskip={1.5\baselineskip},
+        columns=fixed,
+        showstringspaces=false,
+        extendedchars=true,
+        breaklines=true,
+        framesep=10pt,
+        prebreak = \raisebox{0ex}[0ex][0ex]{\ensuremath{\hookleftarrow}},
+        frame=single,
+        showtabs=false,
+        showspaces=false,
+        showstringspaces=false,
+        identifierstyle=\ttfamily,
+        keywordstyle=\color[rgb]{0,0,1},
+        commentstyle=\color[rgb]{0.133,0.545,0.133},
+        stringstyle=\color[rgb]{0.627,0.126,0.941},
+        backgroundcolor=\color{codebg},
+}
+\end_preamble
+\use_default_options true
+\begin_modules
+eqs-within-sections
+figs-within-sections
+logicalmkup
+\end_modules
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry true
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 3cm
+\topmargin 3cm
+\rightmargin 3cm
+\bottommargin 3cm
+\secnumdepth 2
+\tocdepth 2
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+mex-moos: A Matlab Interface for MOOS:V10 Communications
+\end_layout
+
+\begin_layout Author
+Paul Newman, University of Oxford
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Graphics
+	filename ../../python-moos/Documentation/MOOSV-10-256.pdf
+	width 3cm
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+vspace{2cm}
+\end_layout
+
+\end_inset
+
+....ten years on
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+vspace{2cm}
+\end_layout
+
+\end_inset
+
+10.0.2
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage newpage
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset toc
+LatexCommand tableofcontents
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage newpage
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Getting Started - Acquiring and Building MOOS
+\end_layout
+
+\begin_layout Standard
+If you already have MOOS::V10 installed and built you can skip this section.
+\end_layout
+
+\begin_layout Subsection
+Before you start you will need...
+\end_layout
+
+\begin_layout Itemize
+a working compiler like 
+\family typewriter
+gcc
+\family default
+ or 
+\family typewriter
+clang
+\end_layout
+
+\begin_layout Itemize
+
+\family typewriter
+CMake
+\family default
+ installed
+\end_layout
+
+\begin_layout Itemize
+
+\family typewriter
+git
+\family default
+ installed (well actually this is optional as you can download the source
+ code as .zip file and we won't make much use of git in this tutorial)
+\end_layout
+
+\begin_layout Itemize
+if you are using a mac on OSX 10.9 and an R2013 matlab release, please look
+ at Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Other-Notes"
+
+\end_inset
+
+ which will explain why for you an extra step will be invovled.
+ 
+\end_layout
+
+\begin_layout Subsection
+Downloading and Building MOOS V10
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Downloading-and-Building"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+We shall begin where we should and check out a version of MOOS-V10 from
+ a git repos.
+ We will follow good practice and do an out of place build - the source
+ code will go in 
+\begin_inset Quotes eld
+\end_inset
+
+src
+\begin_inset Quotes erd
+\end_inset
+
+ and we will build in 
+\begin_inset Quotes eld
+\end_inset
+
+build
+\begin_inset Quotes erd
+\end_inset
+
+.
+ We will also, after fetching the source switch to the 
+\begin_inset Quotes eld
+\end_inset
+
+devel
+\begin_inset Quotes erd
+\end_inset
+
+ branch because here we are living on the edge 
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+if you want to know what branches are available type 
+\family typewriter
+git branch
+\end_layout
+
+\end_inset
+
+
+\family typewriter
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{lstlisting}[style=Bash] 
+\end_layout
+
+\begin_layout Plain Layout
+
+pmn@mac:~$ mkdir core-moos-v10 
+\end_layout
+
+\begin_layout Plain Layout
+
+pmn@mac:~$ cd core-moos-v10
+\end_layout
+
+\begin_layout Plain Layout
+
+pmn@mac:~$ git clone https://github.com/themoos/core-moos.git src
+\end_layout
+
+\begin_layout Plain Layout
+
+pmn@mac:~$ mkdir build
+\end_layout
+
+\begin_layout Plain Layout
+
+pmn@mac:~$ cd build
+\end_layout
+
+\begin_layout Plain Layout
+
+pmn@mac:~$ ccmake ../src
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{lstlisting}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+At this point you should, after hitting 'c' a couple of times be presented
+ with a CMake screen that looks like that shown in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:The-default-build"
+
+\end_inset
+
+ (note some of the entries are platform dependent so don't worry if what
+ you see is not identical to this).
+ 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename ../../examples-docs-moos/docs/images/v10-simple-build.pdf
+	width 90col%
+
+\end_inset
+
+
+\begin_inset Caption
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:The-default-build"
+
+\end_inset
+
+The default build screen for MOOS V10.
+ 
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+vspace{5mm}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+You are are now in a position to build the MOOS.
+ So press 'c' until 'g' appears, then press 'g' and you are good to go.
+ Then at the terminal prompt type 'make' to build the project.
+ Two directories should have been created 
+\series bold
+bin
+\series default
+ and 
+\series bold
+lib.
+ 
+\series default
+In lib you will see 
+\family typewriter
+libMOOS.a
+\family default
+ and in 
+\family typewriter
+bin
+\family default
+ you will find the newly created 
+\family typewriter
+MOOSDB
+\family default
+ and some other fabulous tools like 
+\begin_inset Flex Noun
+status collapsed
+
+\begin_layout Plain Layout
+umm
+\end_layout
+
+\end_inset
+
+, 
+\begin_inset Flex Noun
+status collapsed
+
+\begin_layout Plain Layout
+mtm
+\end_layout
+
+\end_inset
+
+ and 
+\begin_inset Flex Noun
+status collapsed
+
+\begin_layout Plain Layout
+mqos
+\end_layout
+
+\end_inset
+
+.
+ Nice job.
+\end_layout
+
+\begin_layout Section
+Acquiring python-moos
+\end_layout
+
+\begin_layout Standard
+\begin_inset Flex Noun
+status collapsed
+
+\begin_layout Plain Layout
+mex-moos
+\end_layout
+
+\end_inset
+
+ is hosted on github (at time of writing) but where ever you get it from
+ the build path looks somethign like this.
+ 
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{lstlisting}[style=Bash] 
+\end_layout
+
+\begin_layout Plain Layout
+
+pmn@mac:~$ mkdir mex-moos 
+\end_layout
+
+\begin_layout Plain Layout
+
+pmn@mac:~$ cd mex-moos
+\end_layout
+
+\begin_layout Plain Layout
+
+pmn@mac:~$ git clone https://github.com/themoos/mex-moos.git src
+\end_layout
+
+\begin_layout Plain Layout
+
+pmn@mac:~$ mkdir build
+\end_layout
+
+\begin_layout Plain Layout
+
+pmn@mac:~$ cd build
+\end_layout
+
+\begin_layout Plain Layout
+
+pmn@mac:~$ ccmake ../src
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{lstlisting}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+At the end of this process you should see in the build directory a mex file.
+ It will be called 
+\family typewriter
+mexmoos.XYZ 
+\family default
+where XYZ depends on you operating system.
+ For example on a 64 bit Apple machine it is called 
+\family typewriter
+mexmoos.mexmaci64.
+\end_layout
+
+\begin_layout Subsection
+A Quick Health Check
+\end_layout
+
+\begin_layout Standard
+Now open matlab and add the path to mexmoos to your session.
+ Alternatively just 
+\begin_inset Quotes eld
+\end_inset
+
+cd
+\begin_inset Quotes erd
+\end_inset
+
+ to that directory.
+ Then to check everything is working nicely 
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{lstlisting}[language=Matlab] 
+\end_layout
+
+\begin_layout Plain Layout
+
+>> mexmoos('help')
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{lstlisting}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+You should see help text being printed out.
+\end_layout
+
+\begin_layout Section
+Initialisation 
+\end_layout
+
+\begin_layout Standard
+Initialisation is executed with a a single string parameter
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{lstlisting}[language=Matlab] 
+\end_layout
+
+\begin_layout Plain Layout
+
+>> mexmoos('init')
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{lstlisting}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+this starts up a MOOS connection with default settings - looking for a MOOSDB
+ serving on port 9000 on localhost with a default name of 
+\begin_inset Quotes eld
+\end_inset
+
+mexmoos
+\begin_inset Quotes erd
+\end_inset
+
+.
+ You can overload any of these parameters by using a parameter value pair
+ for MOOSNAME, SERVERPORT, and SERVERHOST.
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{lstlisting}[language=Matlab] 
+\end_layout
+
+\begin_layout Plain Layout
+
+>> mexmoos('help', 'MOOSNAME', 'darkness', 'SERVERPORT', '9001')
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{lstlisting}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Registration
+\end_layout
+
+\begin_layout Standard
+Registration for MOOS data is done with the the 
+\begin_inset Quotes eld
+\end_inset
+
+REGISTER
+\begin_inset Quotes erd
+\end_inset
+
+ command.
+ You also get to specify the name of the variable you are interested in
+ and of course the maximum rate at which you want to receive notifications.
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{lstlisting}[language=Matlab] 
+\end_layout
+
+\begin_layout Plain Layout
+
+>> mexmoos('REGISTER','vader_count',0.2) % 5Hz max
+\end_layout
+
+\begin_layout Plain Layout
+
+>> mexmoos('REGISTER','cookie_count',0.0) % receive every change  
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{lstlisting}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Notification
+\end_layout
+
+\begin_layout Standard
+Notification (the sending of data) is executed using the 
+\begin_inset Quotes eld
+\end_inset
+
+NOTIFY
+\begin_inset Quotes erd
+\end_inset
+
+ key word followed by a string which is the name of the message (variable
+ ) you are sending.
+ Then comes the data - it can be a single double, a string or a byte array.
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{lstlisting}[language=Matlab] 
+\end_layout
+
+\begin_layout Plain Layout
+
+>> mexmoos('NOTIFY','varA',pi)  
+\end_layout
+
+\begin_layout Plain Layout
+
+>> mexmoos('NOTIFY','varB','a remarkable story in a string')  
+\end_layout
+
+\begin_layout Plain Layout
+
+>> mexmoos('NOTIFY','varA',zeros(1,3,'uint8'))  
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{lstlisting}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Receiving 
+\end_layout
+
+\begin_layout Standard
+If you have registed for a variable, according to the period you set in
+ the registration step, messages will be collected for you behind the scenes.
+ You retrieve this 
+\begin_inset Quotes eld
+\end_inset
+
+mail
+\begin_inset Quotes erd
+\end_inset
+
+ with the 
+\begin_inset Quotes eld
+\end_inset
+
+FETCH
+\begin_inset Quotes erd
+\end_inset
+
+ command.
+ This returns to you a struct array of messages.
+ You can see the message field listed below
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{lstlisting}[language=Matlab] 
+\end_layout
+
+\begin_layout Plain Layout
+
+>> msgs = mexmoos('FETCH');
+\end_layout
+
+\begin_layout Plain Layout
+
+>> msgs
+\end_layout
+
+\begin_layout Plain Layout
+
+1x3 struct array with fields:
+\end_layout
+
+\begin_layout Plain Layout
+
+    KEY
+\end_layout
+
+\begin_layout Plain Layout
+
+    TYPE
+\end_layout
+
+\begin_layout Plain Layout
+
+    TIME
+\end_layout
+
+\begin_layout Plain Layout
+
+    STR
+\end_layout
+
+\begin_layout Plain Layout
+
+    DBL
+\end_layout
+
+\begin_layout Plain Layout
+
+    BIN
+\end_layout
+
+\begin_layout Plain Layout
+
+    SRC
+\end_layout
+
+\begin_layout Plain Layout
+
+    ORIGINATING_COMMUNITY
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{lstlisting}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Closing 
+\end_layout
+
+\begin_layout Standard
+You can explicitly close a connection with 
+\begin_inset Quotes eld
+\end_inset
+
+CLOSE
+\begin_inset Quotes erd
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{lstlisting}[language=Matlab] 
+\end_layout
+
+\begin_layout Plain Layout
+
+>> mexmoos(CLOSE,')
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{lstlisting}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+or you can simple call 
+\begin_inset Quotes eld
+\end_inset
+
+
+\family typewriter
+clear mexmoos
+\family default
+
+\begin_inset Quotes erd
+\end_inset
+
+ which will unload the mex-moos library from Matlab.
+\end_layout
+
+\begin_layout Section
+Other Notes 
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Other-Notes"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+On Mac platforms certain combinations of OSX and Matlab caused a world of
+ pain because MATLAB itlsef linked against libstdc++ while libc++ was the
+ system standard.
+ This would lead to a wretched world if you built MOOS and then mex-moos
+ linked against that but was called from inside matlab expecting libstdc++.
+ The solution is that for these known combinations mex-moos will bring down
+ its own provate version of MOOS and build that using libstdc++ explicitly.
+ 
+\end_layout
+
+\end_body
+\end_document
