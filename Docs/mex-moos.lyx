@@ -484,7 +484,7 @@ mqos
 \end_layout
 
 \begin_layout Section
-Acquiring python-moos
+Acquiring mex-moos
 \end_layout
 
 \begin_layout Standard
@@ -980,6 +980,10 @@ name "sec:Other-Notes"
 
 \end_layout
 
+\begin_layout Subsection
+The libstdc++ issue
+\end_layout
+
 \begin_layout Standard
 On Mac platforms certain combinations of OSX and Matlab caused a world of
  pain because MATLAB itlsef linked against libstdc++ while libc++ was the
@@ -988,7 +992,35 @@ On Mac platforms certain combinations of OSX and Matlab caused a world of
  linked against that but was called from inside matlab expecting libstdc++.
  The solution is that for these known combinations mex-moos will bring down
  its own provate version of MOOS and build that using libstdc++ explicitly.
- 
+ But for this to work you need the release called release-0.9
+\end_layout
+
+\begin_layout Subsection
+Capitalisation
+\end_layout
+
+\begin_layout Standard
+Commands are not case sensirive so for example you can use 
+\begin_inset Quotes eld
+\end_inset
+
+
+\family typewriter
+fetch
+\family default
+
+\begin_inset Quotes erd
+\end_inset
+
+ instead of 
+\begin_inset Quotes eld
+\end_inset
+
+FETCH
+\begin_inset Quotes erd
+\end_inset
+
+.
 \end_layout
 
 \end_body

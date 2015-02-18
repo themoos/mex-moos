@@ -409,6 +409,8 @@ bool Initialise(int nlhs, mxArray *plhs[], const mxArray *prhs[], int nrhs)
                 }
                 else
                 {
+                    //store everything in upper case...
+                    MOOSToUpper(sParam);
                     ARGMAP::iterator p = gArgMap.find(sParam);
                     
                     if(p==gArgMap.end())

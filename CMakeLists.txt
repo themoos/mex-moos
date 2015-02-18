@@ -1,87 +1,12 @@
 cmake_minimum_required(VERSION 2.8)
 project(mex-moos)
-include(ExternalProject)
-
 
 
 set(CMakeScripts_MODULE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(CMAKE_MODULE_PATH ${CMakeScripts_MODULE_DIR})
 
-
-# Option for explicitly linking against the GNU libstdc++ instead of libc++ on
-# OSX Mavericks, required in order to use iMatlab as MATLAB still uses libstdc++
-if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-  # On OSX, get the version number.
-  find_program(SW_VERS_PROGRAM sw_vers)
-  mark_as_advanced(SW_VERS_PROGRAM)
-  execute_process(COMMAND ${SW_VERS_PROGRAM} "-productVersion"
-    OUTPUT_VARIABLE OSX_VERSION
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-  # Mavericks (10.9) and above use libc++ as the default.
-  set(OSX_MAVERICKS_VERSION 10.9)
-  set(OSX_YOSEMITE_VERSION 10.10)
-
-
-  if (OSX_VERSION VERSION_EQUAL OSX_MAVERICKS_VERSION AND
-      OSX_VERSION VERSION_LESS OSX_YOSEMITE_VERSION)
-    option(USE_LIBSTDCPP
-      "Use (legacy) GNU libstdc++ on OSX >= ${OSX_MAVERICKS_VERSION}, instead of default LLVM libc++ (required for iMatlab)" ON)
-    if (USE_LIBSTDCPP)
-      message("Running OS X Mavericks (specific version: ${OSX_VERSION}) using "
-        "legacy GNU libstdc++ instead of default LLVM libc++, disable "
-        "USE_LIBSTDCPP option to revert to default LLVM libc++.")      
-    else()
-      # Remove any previous specification of libstdc++.
-      message(STATUS "Using default LLVM libc++.")
-      string(REPLACE "-stdlib=libstdc++" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-    endif()
-  endif()
-endif()
-
-
-#build a private MOOS (this could be conditional on above - need to do that)
-set(EPN PRIVATE_MOOS)
-set(${EPN}_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/${EPN}")
-set(${EPN}_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/${EPN}")
-set(${EPN}_BUILD_DIR ${${EPN}_INSTALL_DIR}/build)
-
-set(${EPN}_CMAKE_ARGS "-DCMAKE_INSTALL_PREFIX=${${EPN}_INSTALL_DIR};-DENABLE_EXPORT=OFF")
-if (DEFINED USE_LIBSTDCPP)
-  # Avoid a CMake warning and only pass through the USE_LIBSTDCPP option
-  # if it exists, which will only happen on OS X >= Mavericks.
-  list(APPEND ${EPN}_CMAKE_ARGS "-DUSE_LIBSTDCPP=${USE_LIBSTDCPP}")
-endif()
-
-#message("${EPN}_PREFIX= '${${EPN}_PREFIX}'")
-#message("${EPN}_INSTALL_DIR='${${EPN}_INSTALL_DIR}'")
-#message("${EPN}_CMAKE_ARGS='${${EPN}_CMAKE_ARGS}'")
-#message("GIT_EXECUTABLE='${GIT_EXECUTABLE}'")
-
-ExternalProject_Add(${EPN}
-  PREFIX ${${EPN}_PREFIX}
-  GIT_REPOSITORY https://github.com/themoos/core-moos.git
-  GIT_TAG devel
-  BINARY_DIR ${${EPN}_BUILD_DIR}
-  INSTALL_DIR ${${EPN}_INSTALL_DIR}
-  CMAKE_ARGS ${${EPN}_CMAKE_ARGS}
-  INSTALL_COMMAND ""
-)
-
-
-#find_package(MOOS 10 QUIET CONFIG HINTS ${${EPN}_BUILD_DIR} NO_DEFAULT_PATH)
-find_package(MOOS 10 QUIET  HINTS ${${EPN}_BUILD_DIR} NO_DEFAULT_PATH)
-if(NOT MOOS_FOUND)
-  message("MOOS NOT FOUND BUT THATS OK. Continue to 'generate', run make, (MOOS will download), then run cmake  again....")
-  return()
-endif()
-
+find_package(MOOS 10 REQUIRED)
 find_package( Matlab REQUIRED )
-if(NOT MATLAB_FOUND)
-  message(STATUS "Did not find MATLAB, disabling ${LIBRARY_FULL_NAME} mex "
-    "wrappers, set MATLAB_ROOT for MATLAB support.")
-  return()
-endif()
 
 set(LIBRARY_FULL_NAME mex-moos) 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
@@ -148,7 +73,7 @@ add_custom_command( OUTPUT ${${LIBRARY_FULL_NAME}_MEX_FILE}
   ARGS -DSOPHUS_DISABLE_ENSURES
   ${MEX_BUILD_INCLUDE_DIRS_CMDS}
   ${FORCE_AND_FIX_MEX_TO_USE_RPATH_LINKING_ARGS}
-  -L${${EPN}_BUILD_DIR}/lib
+  -L${MOOS_DIR}/lib
   -l${MOOS_LIBRARIES}
   -output ${${LIBRARY_FULL_NAME}_MEX_FILE}
   ${${LIBRARY_FULL_NAME}_MEX_SOURCE}
@@ -163,16 +88,6 @@ add_custom_target( ${${LIBRARY_FULL_NAME}_MEX_TARGET}
   SOURCES ${${LIBRARY_FULL_NAME}_MEX_SOURCE}
   VERBATIM )
 
-
-  
-#add_custom_target(copy)
-#add_custom_command(TARGET copy PRE_BUILD
-#                     COMMAND ${CMAKE_COMMAND} -E
-#                         copy ${CMAKE_CURRENT_SOURCE_DIR}/mex-moos.moos ${CMAKE_CURRENT_BINARY_DIR} )
-  
-#add_dependencies(${${LIBRARY_FULL_NAME}_MEX_TARGET} copy) 
-  
-  
 
 message(STATUS "==>  IMPORTANT: To use ${LIBRARY_FULL_NAME} MEX "
   "library, add the following to MATLAB's path:")
